@@ -1,0 +1,24 @@
+Spark自定义聚合函数(UDAF)示例
+https://zhuanlan.zhihu.com/p/25587189
+
+
+SparkSql之UDF函数和UDAF函数
+https://cloud.tencent.com/developer/article/1337412
+
+
+spark 对于key/value 排序 取前几 top take(转载)
+https://blog.csdn.net/hxiaowang/article/details/78580143
+
+
+park算子：Action之take、top、takeOrdered
+https://blog.csdn.net/csmnjk/article/details/82783368
+
+
+
+
+
+
+
+
+
+
