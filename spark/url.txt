@@ -20,5 +20,24 @@ https://blog.csdn.net/csmnjk/article/details/82783368
 
 
 
+Sparkstreaming reduceByKeyAndWindow(_+_, _-_, Duration, Duration) 的源码/原理解析
+https://blog.csdn.net/qq_32440951/article/details/81211284
+
+SparkStreaming之窗口函数
+https://blog.csdn.net/legotime/article/details/51836040
+
+Spark Streaming学习笔记
+https://segmentfault.com/a/1190000009998467
+
+SparkStreaming Dstream 的 Transformation/output 算子（window,updateStateByKey）
+https://hacpai.com/article/1500009148474
+
+
+
+
+
+
+
+
 
 
