@@ -1279,7 +1279,7 @@ Example:
 ```
 
 
-### 19、日期当月最后一天函数: next_day
+### 19、下一个最近的星期X函数: next_day
 语法: next_day(string start_date, string day_of_week)
 返回值: string
 说明: 返回开始日期startdate的下一个星期X所对应的日期。
@@ -1287,7 +1287,7 @@ Example:
 
 Returns the first date which is later than start_date and named as day_of_week (as of Hive1.2.0). start_date is a string/date/timestamp. day_of_week is 2 letters, 3 letters or full name of the day of the week (e.g. Mo, tue, FRIDAY). The time part of start_date is ignored. Example: next_day('2015-01-14', 'TU') = 2015-01-20.
 
-返回当前时间的下一个星期X所对应的日期 如：next_day('2015-01-14', 'TU') = 2015-01-20  以2015-01-14为开始时间，其下一个星期二所对应的日期为2015-01-20
+返回当前时间的下一个星期X所对应的日期(**可能是本周或下周的某一天**) 如：next_day('2015-01-14', 'TU') = 2015-01-20  以2015-01-14为开始时间，其下一个星期二所对应的日期为2015-01-20
 
 ```sql
 #2019-08-05为周一
@@ -1365,6 +1365,23 @@ hive> SELECT date_format('2015-04-08 11:12:12', 'yyyy-MM-dd HH:mm:ss');
 hive> SELECT date_format('2015-04-08', 'yyyy-MM-dd HH:mm:ss');
 2015-04-08 00:00:00
 
+```
+
+##### yyyymmdd和yyyy-mm-dd相互转换
+yyyy-mm-dd转yyyymmdd可以使用date_format，yyyymmdd转yyyy-mm-dd没有直接的parse函数，可以自定义或者借助时间戳相关函数。
+
+```sql
+--20180905转成2018-09-05
+select from_unixtime(unix_timestamp('20180905','yyyymmdd'),'yyyy-mm-dd')
+from dw.ceshi_data
+--结果如下：
+2018-09-05
+ 
+--2018-09-05转成20180905
+select from_unixtime(unix_timestamp('2018-09-05','yyyy-mm-dd'),'yyyymmdd')
+from dw.ceshi_data
+--结果如下：
+20180905
 ```
 
 ### 22、日期月份差函数: months_between
@@ -1616,7 +1633,7 @@ hive> select max(t) from iteblog;
 说明: collect_list(x) - Returns a list of objects with duplicates
 
 
-### 7、集合去重函数: ccollect_set
+### 7、集合去重函数: collect_set
 语法: collect_set(col)
 返回值: array
 说明: collect_set(x) - Returns a set of objects with duplicate elements eliminated
@@ -1754,7 +1771,7 @@ Converts the results of the expression expr to <type>. For example, cast('1' as 
 返回值: Array<T>
 说明: 返回转换后的数据类型
 
-## 十一、集合操作函数
+## 十一、集合访问
 ### 1、array类型访问: A[n]
 语法: A[n]
 操作类型: A为array类型，n为int类型
