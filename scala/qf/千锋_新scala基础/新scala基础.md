@@ -497,13 +497,13 @@ res3: Int = 1000
   res1: Array[Int] = Array(10, 2, 3, 4, 5)
   ```
 
-**使用val 还是var **
+**使用val 还是var**
 
 官方推荐val
 使用val的好处：
 1，更安全
 2，代码可读性更高
-3，资源回收更快，方法执行完，val所定义的变量即回收
+3，资源回收更快
 
 ### 3.5 数据类型（了解）
 
@@ -1320,7 +1320,7 @@ object BlockExpressionDemo {
 
 #### 3.8.1 for循环
 
-for循环语法结构：**for **(i <- 表达式/数组/集合(Range))
+for循环语法结构：**for**(i <- 表达式/数组/集合(Range))
 
 **to和until** 
 
@@ -2265,7 +2265,7 @@ scala> for ((value,index) <- series.zip(Stream from 1)) println(index+" "+value)
 
 ```
 
-4**、unzip函数可以将一个元组的列表转变成一个列表的元组**
+4、**unzip函数可以将一个元组的列表转变成一个列表的元组**
 
 ```scala
 scala> val numbers = Seq(0,1,2,3,4)
@@ -2781,7 +2781,7 @@ set1.splitAt(5)// 返回一个元组
 // 可以使用to{type}快速转换为其他集合类型
 ~~~
 
-#### 4.6 队列
+### 4.6 队列
 
 队列是一个有序列表，在底层可以用数组或是链表来实现
 其输入和输出要遵循先入先出的原则。即：先存入队列的数据，要先取出。后存入的要后取出。
