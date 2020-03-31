@@ -1,0 +1,22 @@
+Hbase技术详细学习笔记
+https://www.jianshu.com/p/569106a3008f
+
+
+Hbase(一)基础知识
+https://www.cnblogs.com/liuwei6/p/6739928.html
+
+
+HBase学习之路 （一）HBase基础介绍
+https://www.cnblogs.com/qingyunzong/p/8665698.html
+
+
+09-HBase基础
+https://github.com/MrQuJL/hadoop-guide/tree/master/09-HBase%E5%9F%BA%E7%A1%80
+
+
+深入HBase架构解析（一）
+http://www.blogjava.net/DLevin/archive/2015/08/22/426877.html
+
+
+
+

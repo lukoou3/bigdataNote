@@ -168,7 +168,7 @@ hbase(main):056:0> create 'ns1:t2', 'f1', SPLITS => ['10', '20', '30', '40']
 tip: 分片创建表，作用如下图所示：
 ```
 
-![](003.png)
+![](assets/markdown-img-paste-20200331205824105.png)
 
 ###### 3.3 list
 
