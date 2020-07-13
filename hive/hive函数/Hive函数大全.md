@@ -1010,6 +1010,30 @@ Example:
  'The Soap'
 ```
 
+### 27、字符串转map：str_to_map
+语法: str_to_map(text[, delimiter1, delimiter2])
+返回值: map<string,string>
+说明: 使用两个分隔符将文本拆分为键值对。 Delimiter1将文本分成K-V对，Delimiter2分割每个K-V对。对于delimiter1默认分隔符是'，'，对于delimiter2默认分隔符是'='。
+
+Splits text into key-value pairs using two delimiters. Delimiter1 separates text into K-V pairs, and Delimiter2 splits each K-V pair. Default delimiters are ',' for delimiter1 and '=' for delimiter2.
+
+```sql
+hive> 
+
+    > select str_to_map('aaa:11&bbb:22', '&', ':')
+    > from tmp.tmp_jzl_20140725_test11;
+OK
+
+{"bbb":"22","aaa":"11"}
+
+-- 取map的值
+hive> select str_to_map('aaa:11&bbb:22', '&', ':')['aaa']
+    > from tmp.tmp_jzl_20140725_test11;
+
+OK
+11
+```
+
 ## 六、日期函数
 ### 1、UNIX时间戳转日期函数: from_unixtime
 语法: from_unixtime(bigint unixtime[, string format])
