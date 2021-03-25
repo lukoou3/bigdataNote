@@ -1,0 +1,33 @@
+PySpark基于SHC框架读取HBase数据并转成DataFrame
+https://blog.csdn.net/u014736152/article/details/89605015
+
+spark读写HBase之使用hortonworks的开源框架shc（一）：源码编译以及测试工程创建
+https://www.jianshu.com/p/cddadb8b59c5
+
+spark读写HBase之使用hortonworks的开源框架shc（二）：入门案例
+https://www.jianshu.com/p/ab09eb36b32a
+
+spark操作hbase详细讲解
+https://blog.csdn.net/qq_35688140/article/details/89297315
+
+Spark+Hbase 读取分片数据、深挖原理
+https://www.jianshu.com/p/6b310cef8b25
+
+Spark读写HBase实践
+https://www.jianshu.com/p/49141df754a2
+
+黑猴子的家：Spark RDD 之 HBase的输入输出（数据读取与保存的主要方式之一）
+https://www.jianshu.com/p/aa5722964463
+
+
+HBase 顺序序列rowkey和预分区规则的思考和设计
+https://www.jianshu.com/p/9ad59c0e65ec
+
+Hbase FilterList使用总结
+https://www.cnblogs.com/cssdongl/p/7098138.html
+
+Hbase 多条件查询
+https://www.cnblogs.com/leon0/p/11381353.html
+
+
+

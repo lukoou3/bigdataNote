@@ -131,6 +131,7 @@ def saveTable(
   val batchSize = options.batchSize
   val isolationLevel = options.isolationLevel
 
+  // 生成insert sql
   val insertStmt = getInsertStatement(table, rddSchema, tableSchema, isCaseSensitive, dialect, mode, options)
   val repartitionedDF = options.numPartitions match {
     case Some(n) if n <= 0 => throw new IllegalArgumentException(
@@ -145,6 +146,73 @@ def saveTable(
 }
 
 ```
+
+### getInsertStatement
+```scala
+/**
+  * Returns an Insert SQL statement for inserting a row into the target table via JDBC conn.
+  */
+def getInsertStatement(
+                        table: String,
+                        rddSchema: StructType,
+                        tableSchema: Option[StructType],
+                        isCaseSensitive: Boolean,
+                        dialect: JdbcDialect,
+                        mode: JDBCSaveMode,
+                        options: JDBCOptions
+                      ): String = {
+  // 生成sql table 的columns
+  val columns = if (tableSchema.isEmpty) {
+    // 如果每天sql table 的scheme，用dataframe的columns
+    rddSchema.fields.map(x => dialect.quoteIdentifier(x.name)).mkString(",")
+  } else {
+    val columnNameEquality = if (isCaseSensitive) {
+      org.apache.spark.sql.catalyst.analysis.caseSensitiveResolution
+    } else {
+      org.apache.spark.sql.catalyst.analysis.caseInsensitiveResolution
+    }
+    // The generated insert statement needs to follow rddSchema's column sequence and
+    // tableSchema's column names. When appending data into some case-sensitive DBMSs like
+    // PostgreSQL/Oracle, we need to respect the existing case-sensitive column names instead of
+    // RDD column names for user convenience.
+    val tableColumnNames = tableSchema.get.fieldNames
+    // 转dataframe的columns为sql table 的columns，不区分大小写查找
+    rddSchema.fields.map { col =>
+      val normalizedName = tableColumnNames.find(f => columnNameEquality(f, col.name)).getOrElse {
+        throw new AnalysisException(s"""Column "${col.name}" not found in schema $tableSchema""")
+      }
+      dialect.quoteIdentifier(normalizedName)
+    }.mkString(",")
+  }
+  // 生成替换参数，_ => "?"这个函数定义方法可以学习一下
+  val placeholders = rddSchema.fields.map(_ => "?").mkString(",")
+
+  // 根据mode是否是update生成insert sql
+  mode match {
+    case JDBCSaveMode.Update =>
+      val props = options.asProperties
+      val duplicateIncs = props
+        .getProperty(JDBCOptions.JDBC_DUPLICATE_INCS, "")
+        .split(",")
+        .filter { x => StringUtils.isNotBlank(x) }
+        .map { x => s"`$x`" }
+      val duplicateSetting = rddSchema
+        .fields
+        .map { x => dialect.quoteIdentifier(x.name) }
+        .map { name => if (duplicateIncs.contains(name)) s"$name=$name+?" else s"$name=?" }
+        .mkString(",")
+      // INSERT UPDATE sql
+      val sql = s"INSERT INTO $table ($columns) VALUES ($placeholders) ON DUPLICATE KEY UPDATE $duplicateSetting"
+      if (props.getProperty("showSql", "false").equals("true")) {
+        println(s"${JDBCSaveMode.Update} => sql => $sql")
+      }
+      sql
+    case _ => s"INSERT INTO $table ($columns) VALUES ($placeholders)"
+  }
+  //    s"INSERT INTO $table ($columns) VALUES ($placeholders)"
+}
+```
+
 
 ### savePartition
 ```scala
@@ -207,10 +275,16 @@ def savePartition(
     }
     val isUpdateMode = mode == JDBCSaveMode.Update
     val stmt = conn.prepareStatement(insertStmt)
+    // private type JDBCValueSetter = (PreparedStatement, Row, Int, Int) ⇒ Unit
+    // 设置函数数组，这个可以借鉴
+    // case IntegerType ⇒ (stmt: PreparedStatement, row: Row, pos: Int, offset: Int) ⇒ stmt.setInt(pos + 1, row.getInt(pos - offset))
     val setters: Array[JDBCValueSetter] = getSetter(rddSchema.fields, conn, dialect, isUpdateMode)
     val nullTypes = rddSchema.fields.map(f => getJdbcType(f.dataType, dialect).jdbcNullType)
+    // dataframe的columns len
     val length = rddSchema.fields.length
+    // ? 的个数
     val numFields = if (isUpdateMode) length * 2 else length
+    // ? 的个数除以2
     val midField = numFields / 2
     try {
       var rowCount = 0
@@ -224,6 +298,7 @@ def savePartition(
                 if (row.isNullAt(i)) {
                   stmt.setNull(i + 1, nullTypes(i))
                 } else {
+                  // 这样调用函数
                   setters(i).apply(stmt, row, i, 0)
                 }
               case false ⇒
@@ -244,6 +319,7 @@ def savePartition(
         }
         stmt.addBatch()
         rowCount += 1
+        // 批量提交
         if (rowCount % batchSize == 0) {
           stmt.executeBatch()
           rowCount = 0
@@ -301,6 +377,280 @@ def savePartition(
 }
 ```
 
+### getSetter
+```scala
+// 定义函数类型，这个可以借鉴
+private type JDBCValueSetter = (PreparedStatement, Row, Int, Int) ⇒ Unit
+
+// 生成set函数
+private def makeSetter(
+                        conn: Connection,
+                        dialect: JdbcDialect,
+                        dataType: DataType): JDBCValueSetter = dataType match {
+
+  case IntegerType ⇒
+    (stmt: PreparedStatement, row: Row, pos: Int, offset: Int) ⇒
+      stmt.setInt(pos + 1, row.getInt(pos - offset))
+
+  case LongType ⇒
+    (stmt: PreparedStatement, row: Row, pos: Int, offset: Int) ⇒
+      stmt.setLong(pos + 1, row.getLong(pos - offset))
+
+  case DoubleType ⇒
+    (stmt: PreparedStatement, row: Row, pos: Int, offset: Int) ⇒
+      stmt.setDouble(pos + 1, row.getDouble(pos - offset))
+
+  case FloatType ⇒
+    (stmt: PreparedStatement, row: Row, pos: Int, offset: Int) ⇒
+      stmt.setFloat(pos + 1, row.getFloat(pos - offset))
+
+  case ShortType ⇒
+    (stmt: PreparedStatement, row: Row, pos: Int, offset: Int) ⇒
+      stmt.setInt(pos + 1, row.getShort(pos - offset))
+
+  case ByteType ⇒
+    (stmt: PreparedStatement, row: Row, pos: Int, offset: Int) ⇒
+      stmt.setInt(pos + 1, row.getByte(pos - offset))
+
+  case BooleanType ⇒
+    (stmt: PreparedStatement, row: Row, pos: Int, offset: Int) ⇒
+      stmt.setBoolean(pos + 1, row.getBoolean(pos - offset))
+
+  case StringType ⇒
+    (stmt: PreparedStatement, row: Row, pos: Int, offset: Int) ⇒
+      stmt.setString(pos + 1, row.getString(pos - offset))
+
+  case BinaryType ⇒
+    (stmt: PreparedStatement, row: Row, pos: Int, offset: Int) ⇒
+      stmt.setBytes(pos + 1, row.getAs[Array[Byte]](pos - offset))
+
+  case TimestampType ⇒
+    (stmt: PreparedStatement, row: Row, pos: Int, offset: Int) ⇒
+      stmt.setTimestamp(pos + 1, row.getAs[java.sql.Timestamp](pos - offset))
+
+  case DateType ⇒
+    (stmt: PreparedStatement, row: Row, pos: Int, offset: Int) ⇒
+      stmt.setDate(pos + 1, row.getAs[java.sql.Date](pos - offset))
+
+  case t: DecimalType ⇒
+    (stmt: PreparedStatement, row: Row, pos: Int, offset: Int) ⇒
+      stmt.setBigDecimal(pos + 1, row.getDecimal(pos - offset))
+
+  case ArrayType(et, _) ⇒
+    // remove type length parameters from end of type name
+    val typeName = getJdbcType(et, dialect).databaseTypeDefinition
+      .toLowerCase.split("\\(")(0)
+    (stmt: PreparedStatement, row: Row, pos: Int, offset: Int) ⇒
+      val array = conn.createArrayOf(
+        typeName,
+        row.getSeq[AnyRef](pos - offset).toArray)
+      stmt.setArray(pos + 1, array)
+
+  case _ ⇒
+    (_: PreparedStatement, _: Row, pos: Int, offset: Int) ⇒
+      throw new IllegalArgumentException(
+        s"Can't translate non-null value for field $pos")
+}
+
+// 生成set函数数组，Array.fill(2)(setter).flatten用法可以借鉴。
+private def getSetter(fields: Array[StructField], connection: Connection, dialect: JdbcDialect, isUpdateMode: Boolean): Array[JDBCValueSetter] = {
+  val setter = fields.map(_.dataType).map(makeSetter(connection, dialect, _))
+  if (isUpdateMode) {
+    Array.fill(2)(setter).flatten
+  } else {
+    setter
+  }
+}
+```
+
+## load实现
+```scala
+override def createRelation(
+                             sqlContext: SQLContext,
+                             parameters: Map[String, String]): BaseRelation = {
+
+  val jdbcOptions = new JDBCOptions(parameters)
+  // 下面四个参数用户分区，定义了partitionColumn就必须定义其他3个字段
+  val partitionColumn = jdbcOptions.partitionColumn
+  val lowerBound = jdbcOptions.lowerBound
+  val upperBound = jdbcOptions.upperBound
+  val numPartitions = jdbcOptions.numPartitions
+
+  val partitionInfo = if (partitionColumn.isEmpty) {
+    assert(lowerBound.isEmpty && upperBound.isEmpty, "When 'partitionColumn' is not specified, " +
+      s"'$JDBC_LOWER_BOUND' and '$JDBC_UPPER_BOUND' are expected to be empty")
+    null
+  } else {
+    assert(lowerBound.nonEmpty && upperBound.nonEmpty && numPartitions.nonEmpty,
+      s"When 'partitionColumn' is specified, '$JDBC_LOWER_BOUND', '$JDBC_UPPER_BOUND', and " +
+        s"'$JDBC_NUM_PARTITIONS' are also required")
+    JDBCPartitioningInfo(
+      partitionColumn.get, lowerBound.get, upperBound.get, numPartitions.get)
+  }
+  // 生成Array[Partition]
+  val parts = JDBCRelation.columnPartition(partitionInfo)
+  JDBCRelation(parts, jdbcOptions)(sqlContext.sparkSession)
+}
+
+/**
+  * Instructions on how to partition the table among workers.
+  */
+private[sql] case class JDBCPartitioningInfo(
+                                              column: String,
+                                              lowerBound: Long,
+                                              upperBound: Long,
+                                              numPartitions: Int)
+```
+
+### 生成Array[Partition]
+
+#### JDBCPartition
+```scala
+/**
+  * Data corresponding to one partition of a JDBCRDD.
+  */
+case class JDBCPartition(whereClause: String, idx: Int) extends Partition {
+  override def index: Int = idx
+}
+
+/**
+ * An identifier for a partition in an RDD.
+ */
+trait Partition extends Serializable {
+  /**
+   * Get the partition's index within its parent RDD
+   */
+  def index: Int
+
+  // A better default implementation of HashCode
+  override def hashCode(): Int = index
+
+  override def equals(other: Any): Boolean = super.equals(other)
+}
+```
+
+#### columnPartition
+```scala
+// 给定一个分区示意图（整型列、若干分区以及列值的上下界），为每个分区生成WHERE子句，以便表中的每一行恰好出现一次。
+// 参数minValue和maxValue是建议性的，因为不正确的值可能会导致分区不好，但不会有数据无法表示。
+// 空值谓词被添加到第一个partitionwhere子句中，以包含partitions列中具有空值的行。
+/**
+  * Given a partitioning schematic (a column of integral type, a number of
+  * partitions, and upper and lower bounds on the column's value), generate
+  * WHERE clauses for each partition so that each row in the table appears
+  * exactly once.  The parameters minValue and maxValue are advisory in that
+  * incorrect values may cause the partitioning to be poor, but no data
+  * will fail to be represented.
+  *
+  * Null value predicate is added to the first partition where clause to include
+  * the rows with null value for the partitions column.
+  *
+  * @param partitioning partition information to generate the where clause for each partition
+  * @return an array of partitions with where clause for each partition
+  */
+def columnPartition(partitioning: JDBCPartitioningInfo): Array[Partition] = {
+  if (partitioning == null || partitioning.numPartitions <= 1 ||
+    partitioning.lowerBound == partitioning.upperBound) {
+    // 整个sql table为一个分区
+    return Array[Partition](JDBCPartition(null, 0))
+  }
+
+  val lowerBound = partitioning.lowerBound
+  val upperBound = partitioning.upperBound
+  require (lowerBound <= upperBound,
+    "Operation not allowed: the lower bound of partitioning column is larger than the upper " +
+      s"bound. Lower bound: $lowerBound; Upper bound: $upperBound")
+
+  val numPartitions =
+    if ((upperBound - lowerBound) >= partitioning.numPartitions || /* check for overflow */
+      (upperBound - lowerBound) < 0) {
+      partitioning.numPartitions
+    } else {
+      logWarning("The number of partitions is reduced because the specified number of " +
+        "partitions is less than the difference between upper bound and lower bound. " +
+        s"Updated number of partitions: ${upperBound - lowerBound}; Input number of " +
+        s"partitions: ${partitioning.numPartitions}; Lower bound: $lowerBound; " +
+        s"Upper bound: $upperBound.")
+      upperBound - lowerBound
+    }
+  // Overflow and silliness can happen if you subtract then divide.
+  // Here we get a little roundoff, but that's (hopefully) OK.
+  val stride: Long = upperBound / numPartitions - lowerBound / numPartitions
+  val column = partitioning.column
+  var i: Int = 0
+  var currentValue: Long = lowerBound
+  val ans = new ArrayBuffer[Partition]()
+  while (i < numPartitions) {
+    val lBound = if (i != 0) s"$column >= $currentValue" else null
+    currentValue += stride
+    val uBound = if (i != numPartitions - 1) s"$column < $currentValue" else null
+    val whereClause =
+      if (uBound == null) {
+        lBound
+      } else if (lBound == null) {
+        s"$uBound or $column is null"
+      } else {
+        s"$lBound AND $uBound"
+      }
+    ans += JDBCPartition(whereClause, i)
+    i = i + 1
+  }
+  ans.toArray
+}
+```
+
+#### JDBCRelation
+生成rdd比save复杂，先不看了，自定义读的情况少，自定义保存用的多一点。
+```scala
+private[sql] case class JDBCRelation(
+                                      parts: Array[Partition], jdbcOptions: JDBCOptions)(@transient val sparkSession: SparkSession)
+  extends BaseRelation
+    with PrunedFilteredScan
+    with InsertableRelation {
+
+  override def sqlContext: SQLContext = sparkSession.sqlContext
+
+  override val needConversion: Boolean = false
+
+  override val schema: StructType = {
+    val tableSchema = JDBCRDD.resolveTable(jdbcOptions)
+    jdbcOptions.customSchema match {
+      case Some(customSchema) => JdbcUtils.getCustomSchema(
+        tableSchema, customSchema, sparkSession.sessionState.conf.resolver)
+      case None => tableSchema
+    }
+  }
+
+  // Check if JDBCRDD.compileFilter can accept input filters
+  override def unhandledFilters(filters: Array[Filter]): Array[Filter] = {
+    filters.filter(JDBCRDD.compileFilter(_, JdbcDialects.get(jdbcOptions.url)).isEmpty)
+  }
+
+  override def buildScan(requiredColumns: Array[String], filters: Array[Filter]): RDD[Row] = {
+    // Rely on a type erasure hack to pass RDD[InternalRow] back as RDD[Row]
+    JDBCRDD.scanTable(
+      sparkSession.sparkContext,
+      schema,
+      requiredColumns,
+      filters,
+      parts,
+      jdbcOptions).asInstanceOf[RDD[Row]]
+  }
+
+  override def insert(data: DataFrame, overwrite: Boolean): Unit = {
+    data
+      .write
+      .mode(if (overwrite) SaveMode.Overwrite else SaveMode.Append)
+      .jdbc(jdbcOptions.url, jdbcOptions.table, jdbcOptions.asProperties)
+  }
+
+  override def toString: String = {
+    val partitioningInfo = if (parts.nonEmpty) s" [numPartitions=${parts.length}]" else ""
+    // credentials should not be included in the plan output, table information is sufficient.
+    s"JDBCRelation(${jdbcOptions.table})" + partitioningInfo
+  }
+}
+```
 
 ## JDBCOptions
 文件定义了伴生类和伴生对象。

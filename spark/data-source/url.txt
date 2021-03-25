@@ -1,0 +1,30 @@
+
+Spark-SQL之自定义数据源的构建
+https://blog.csdn.net/liweihope/article/details/94781588
+
+scala实战之spark源码修改（能够将DataFrame按字段增量写入mysql数据表）
+https://blog.csdn.net/zfszhangyuan/article/details/52634617?utm_medium=distribute.pc_relevant.none-task-blog-baidujs_title-3&spm=1001.2101.3001.4242
+
+【Spark】DataSource API
+https://www.jianshu.com/p/06307d0e2359
+
+【Spark】DataSource API
+http://ddrv.cn/a/248948
+https://www.jianshu.com/p/06307d0e2359
+
+Spark SQL的jdbc数据源如何确定数据分区
+https://blog.csdn.net/dinghua_xuexi/article/details/107816046
+
+Spark源码解读(1)--Spark Sql使用JDBC写Write流程
+https://blog.csdn.net/weixin_44131414/article/details/104650220
+
+Spark DataSource API
+https://blog.csdn.net/weixin_34081595/article/details/92452993
+
+利用 Spark DataSource API 实现Rest数据源
+https://www.jianshu.com/p/6441eaa4d064
+
+利用 Spark DataSource API 实现Rest数据源
+https://blog.csdn.net/weixin_34128534/article/details/90594205
+
+
