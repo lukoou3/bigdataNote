@@ -167,6 +167,12 @@ DONE
  
 ```
 
+## 启动交互式客户端
+```
+clickhouse-client  -m
+```
+
+
 
 ```
 
