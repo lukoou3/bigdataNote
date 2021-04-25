@@ -425,6 +425,70 @@ def buildScan(requiredColumns: Array[String], filters: Array[Filter]): RDD[Row] 
 }
 ```
 
+### HBaseTableScanRDD
+
+#### buildGets,buildScan
+
+先看看人家怎么实现查询的，很复杂分析sql语法，生成查询规则，分成get和scan查询，然后合并。
+学学人家怎么构造get和scan的构造
+```scala
+private def buildScan(
+    start: Option[HBaseType],
+    end: Option[HBaseType],
+    columns: Seq[Field], filter: Option[HFilter]): Scan = {
+  val scan = {
+    (start, end) match {
+      // Scan的构造函数还不少
+      case (Some(lb), Some(ub)) => new Scan(lb, ub)
+      case (Some(lb), None) => new Scan(lb)
+      case (None, Some(ub)) => new Scan(Array[Byte](), ub)
+      case _ => new Scan
+    }
+  }
+  handleTimeSemantics(scan)
+
+  // set fetch size
+  // scan.setCaching(scannerFetchSize)
+  // 过滤每行的列，可以在列上重复调用，看源码是通过set保存的
+  columns.foreach{ c =>
+    scan.addColumn(
+      relation.catalog.shcTableCoder.toBytes(c.cf),
+      relation.catalog.shcTableCoder.toBytes(c.col))
+  }
+  val size = sparkConf.getInt(SparkHBaseConf.CachingSize, SparkHBaseConf.defaultCachingSize)
+  scan.setCaching(size)
+  // filter只能设置一个:filter: Option[HFilter]
+  filter.foreach(scan.setFilter(_))
+  scan
+}
+
+private def buildGets(
+    tbr: TableResource,
+    g: Array[ScanRange[Array[Byte]]],
+    columns: Seq[Field],
+    filter: Option[HFilter]): Iterator[Result] = {
+  val size = sparkConf.getInt(SparkHBaseConf.BulkGetSize, SparkHBaseConf.defaultBulkGetSize)
+  g.grouped(size).flatMap{ x =>
+    val gets = new ArrayList[Get]()
+    x.foreach{ y =>
+      val g = new Get(y.start.get.point)
+      handleTimeSemantics(g)
+      // 过滤每行的列，可以在列上重复调用，看源码是通过set保存的
+      columns.foreach{ c =>
+        g.addColumn(
+          relation.catalog.shcTableCoder.toBytes(c.cf),
+          relation.catalog.shcTableCoder.toBytes(c.col))
+      }
+      // filter只能设置一个:filter: Option[HFilter]
+      filter.foreach(g.setFilter(_))
+      gets.add(g)
+    }
+    val tmp = tbr.get(gets)
+    rddResources.addResource(tmp)
+    toResultIterator(tmp)
+  }
+}
+```
 
 
 ```java
