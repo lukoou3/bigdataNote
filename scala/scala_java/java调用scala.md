@@ -6,6 +6,11 @@ Object[]的必须传入Array[AnyRef]，里面不能有int，必须显示的使�
 
 对于传入Object[]的方法，可以重写一个scala的方法，参数为Array[Any]，里面遍历数组调用java参数为Integer、Object的方法
 
+**java中方法参数为object变参时，scala调用是必须显示的转any为AnyRef，或者传Array[Any], 传Any时编译时会报错；java中方法参数为object参数时编译没问题**
+
+**java中方法参数为Object[]时，scala调用是必须显示传Array[AnyRef]，否则编译器就是报错, any_array.asInstanceOf[Array[AnyRef]]传入即可，Array[Any]编译时本来就是编译成Array[Object]**
+
+**scala的Array和java的是一样的，不支持协变的，Array[Any]其实就是Array[AnyRef]，编译不通过大胆的asInstanceOf[Array[AnyRef]]。Array[Int]就是Array[Int]不能asInstanceOf[Array[AnyRef]]。不必担心Array[Any] asInstanceOf[Array[AnyRef]] 报错，Array[Int]不能被赋值成Array[Any]，因为数组是不支持协变的。**
 
 ```java
 package basetype;
