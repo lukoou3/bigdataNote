@@ -171,6 +171,12 @@ DONE
 ```
 clickhouse-client  -m
 ```
+不加-m换行会执行sql，加-m分号结尾执行。
+
+
+## 使用DBeaver客户端连接
+![](assets/markdown-img-paste-20210503122518797.png)
+
 
 
 
