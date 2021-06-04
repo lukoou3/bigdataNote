@@ -1,0 +1,11 @@
+Spark_Spark优化_使用kryo 序列化
+https://blog.csdn.net/u010003835/article/details/106449402?utm_medium=distribute.pc_relevant.none-task-blog-baidujs_baidulandingword-0&spm=1001.2101.3001.4242
+
+spark之kryo序列化及其使用
+https://blog.csdn.net/qq_43665254/article/details/112645096
+
+Spark的Kryo序列化注册
+https://blog.csdn.net/baolibin528/article/details/54406286
+
+需要在Spark（scala）中进行kryo序列化
+https://www.runexception.com/q/1017
