@@ -1,0 +1,7 @@
+
+gbdt + url:
+https://www.cnblogs.com/wkang/p/9657032.html
+https://www.cnblogs.com/code2one/p/10366183.html
+https://www.deeplearn.me/1944.html
+https://www.it610.com/article/1297337060050411520.htm
+https://blog.csdn.net/Gamer_gyt/article/details/90183215
