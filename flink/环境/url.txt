@@ -1,0 +1,4 @@
+报错：Could not find a file system implementation for scheme ‘hdfs‘
+https://blog.csdn.net/qq_39331255/article/details/111492784
+https://www.pianshen.com/article/81221041599/
+https://my.oschina.net/u/2338224/blog/3101005
